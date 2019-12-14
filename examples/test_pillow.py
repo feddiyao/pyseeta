@@ -167,11 +167,11 @@ def compareface(image, region, name):
     pic_image = image.crop(region)
     # face_locations = face_recognition.face_locations(pic_image)
     frame_4 = cv2.cvtColor(numpy.asarray(pic_image), cv2.COLOR_RGB2BGR)
-    frame_4 = resize(frame_4,(150,150))
+    frame_4 = resize(frame_4,(100,100))
     pic_encodings = face_recognition.face_encodings(frame_4)
     if (len(pic_encodings) == 0):
         ID = 0
-        flag = 0
+        flag = 3
         return flag, ID
     pic_encoding = pic_encodings[0]
     face_distances = face_recognition.face_distance(known_face_encodings, pic_encoding)
@@ -195,7 +195,7 @@ def compareface(image, region, name):
 
 
 
-
+# video_capture = cv2.VideoCapture(0)
 video_capture = cv2.VideoCapture("ch09_20190518235959.mp4")
 sThre = 10  # sThre表示像素阈值
 
@@ -279,9 +279,13 @@ if __name__ == '__main__':
                     if flag == 1:
                         # cv2.putText(frame_2, id, (left + 6, bottom - 6), font, 1.0, (255, 255, 255), 1)
                         print(id)
+                        print(flag)
+                        print('=-=-=-=-=-=-=-=-=-=-=')
                     elif flag == 0:
                         # cv2.putText(frame_2, name, (left + 6, bottom - 6), font, 1.0, (255, 255, 255), 1)
                         print(name)
+                        print(flag)
+                        print('=-=-=-=-=-=-=-=-=-=-=')
                         name+=1
 
                     # cv2.rectangle(frame_2, (left, bottom - 35), (right, bottom), (0, 0, 255), 2)
