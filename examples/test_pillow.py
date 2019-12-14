@@ -25,6 +25,16 @@
 from pyseeta import Detector
 from pyseeta import Aligner
 from pyseeta import Identifier
+import cv2
+import time
+import numpy
+import face_recognition
+from PIL import ImageDraw, ImageFont, Image
+from face_recognition import load_image_file
+from cv2 import resize
+
+
+
 
 try:
     from PIL import Image, ImageDraw
@@ -32,21 +42,19 @@ try:
 except ImportError:
     raise ImportError('Pillow can not be found!')
 
-def test_detector():
-    print('test detector:')
+def test_detector(frame):
     # load model
-    detector = Detector()
+    detector = Detector(model_path='E:\\GitFile\\pyseeta\\models\\seeta_fd_frontal_v1.0.bin')
     detector.set_min_face_size(30)
 
-    image_color = Image.open('data/chloecalmon.png').convert('RGB')
+    image_color = Image.fromarray(frame).convert('RGB')
     image_gray = image_color.convert('L')
     faces = detector.detect(image_gray)
     draw = ImageDraw.Draw(image_color)
-    for i, face in enumerate(faces):
-        print('({0},{1},{2},{3}) score={4}'.format(face.left, face.top, face.right, face.bottom, face.score))
-        draw.rectangle([face.left, face.top, face.right, face.bottom])
-    image_color.show()
-    detector.release()
+
+    return faces
+    # image_color.show()
+    # detector.release()
 
 def test_aligner():
     print('test aligner:')
@@ -122,7 +130,7 @@ def test_cropface():
 
     image_color = Image.open('data/chloecalmon.png').convert('RGB')
     image_gray = image_color.convert('L')
-    
+
     faces = detector.detect(image_gray)
     for face in faces:
         landmarks = aligner.align(image_gray, face)
@@ -133,9 +141,161 @@ def test_cropface():
     aligner.release()
     detector.release()
 
+def absdiff_demo(image_1, image_2, sThre):
+
+    gray_image_1 = cv2.cvtColor(image_1, cv2.COLOR_BGR2GRAY)  # 灰度化
+
+    gray_image_1 = cv2.GaussianBlur(gray_image_1, (5, 5), 0)  # 高斯滤波
+
+    gray_image_2 = cv2.cvtColor(image_2, cv2.COLOR_BGR2GRAY)
+
+    gray_image_2 = cv2.GaussianBlur(gray_image_2, (5, 5), 0)
+
+    d_frame = cv2.absdiff(gray_image_1, gray_image_2)
+
+    ret, d_frame = cv2.threshold(d_frame, sThre, 255, cv2.THRESH_BINARY)
+
+    return d_frame
+
+# 人脸特征编码集合
+known_face_encodings = []
+
+# 人脸特征姓名集合
+known_face_IDs = []
+
+def compareface(image, region, name):
+    flag = 1
+    pic_image = image.crop(region)
+    # face_locations = face_recognition.face_locations(pic_image)
+    frame_4 = cv2.cvtColor(numpy.asarray(pic_image), cv2.COLOR_RGB2BGR)
+    frame_4 = resize(frame_4,(150,150))
+    pic_encodings = face_recognition.face_encodings(frame_4)
+    if (len(pic_encodings) == 0):
+        ID = 0
+        flag = 0
+        return flag, ID
+    pic_encoding = pic_encodings[0]
+    face_distances = face_recognition.face_distance(known_face_encodings, pic_encoding)
+    face_distances_list = face_distances.tolist()
+    if len(face_distances_list) == 0:
+        known_face_encodings.append(pic_encoding)
+        known_face_IDs.append(name)  # 调用的时候外面的nameid要+1
+        ID = 0
+        flag = 2
+        return flag, ID
+    print(face_distances_list[:])
+    minindex = face_distances_list.index(min(face_distances_list))
+    if min(face_distances_list) > 0.45:
+        known_face_encodings.append(pic_encoding)
+        known_face_IDs.append(name) # 调用的时候外面的nameid要+1
+        ID = 0
+        flag = 0
+    else:
+        ID = known_face_IDs[minindex]
+    return flag, ID
+
+
+
+
+video_capture = cv2.VideoCapture("ch09_20190518235959.mp4")
+sThre = 10  # sThre表示像素阈值
+
+
+# 人脸特征编码集合
+known_face_encodings = []
+
+# 人脸特征姓名集合
+known_face_IDs = []
+
+i = 0
+
 if __name__ == '__main__':
 
-    test_detector()
-    # test_aligner()
-    # test_identifier()
-    # test_cropface()
+
+    countsnap=0
+
+    name = 0
+
+    while True:
+
+        ret, frame = video_capture.read()
+
+        if i == 0:
+            cv2.waitKey(1)
+
+            i = i + 1
+
+        ret_2, frame_2 = video_capture.read()
+
+        start = time.time()
+
+        segMap = absdiff_demo(frame, frame_2, sThre)
+
+        kernel = np.ones((4, 4), np.uint8)
+
+        segMap = cv2.morphologyEx(segMap, cv2.MORPH_OPEN, kernel)
+
+        kernel = np.ones((20, 20), np.uint8)
+
+        segMap = cv2.morphologyEx(segMap, cv2.MORPH_CLOSE, kernel)
+
+        # binary, contours, hierarchy = cv2.findContours(segMap, cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)  # 该函数计算一幅图像中目标的轮廓
+
+        contours, hierarchy = cv2.findContours(segMap, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+
+        if len(contours) > 0 and len(contours) < 10 and countsnap%4==0:
+
+            for c in contours:
+
+                (x, y, w, h) = cv2.boundingRect(c)
+
+                if w * h < 400:
+                    continue
+
+                image = Image.fromarray(cv2.cvtColor(frame_2, cv2.COLOR_BGR2RGB))
+
+                region = (x, y, x+w, y+h)
+                newImage = image.crop(region)
+
+                frame_3 = cv2.cvtColor(numpy.asarray(newImage),cv2.COLOR_RGB2BGR)
+
+                face_locations = []
+                face_names = []
+                process_this_frame = True
+
+                if process_this_frame:
+                    face_locations = test_detector(frame_3)
+
+                process_this_frame = not process_this_frame
+
+                for face_location in face_locations:
+                    top = face_location.top + y
+                    right = x + face_location.right
+                    bottom = y + face_location.bottom
+                    left = face_location.left + x
+                    region_next = (left,top,right,bottom)
+                    flag, id = compareface(image,region_next,name)
+                    cv2.rectangle(frame_2, (left, top), (right, bottom), (0, 0, 255), 2)
+                    font = cv2.FONT_HERSHEY_DUPLEX
+                    if flag == 1:
+                        # cv2.putText(frame_2, id, (left + 6, bottom - 6), font, 1.0, (255, 255, 255), 1)
+                        print(id)
+                    elif flag == 0:
+                        # cv2.putText(frame_2, name, (left + 6, bottom - 6), font, 1.0, (255, 255, 255), 1)
+                        print(name)
+                        name+=1
+
+                    # cv2.rectangle(frame_2, (left, bottom - 35), (right, bottom), (0, 0, 255), 2)
+
+                    # cv2.putText(frame, '', (left + 6, bottom - 6), font, 1.0, (255, 255, 255), 1)
+
+        cv2.imshow('Video', frame_2)
+
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+        # test_aligner()
+        # test_identifier()
+        # test_cropface()
+
+video_capture.release()
+cv2.destroyAllWindows()
