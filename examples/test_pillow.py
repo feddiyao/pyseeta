@@ -28,11 +28,11 @@ from pyseeta import Identifier
 import cv2
 import time
 import numpy
+
 import face_recognition
 from PIL import ImageDraw, ImageFont, Image
 from face_recognition import load_image_file
 from cv2 import resize
-
 
 
 
@@ -142,7 +142,6 @@ def test_cropface():
     detector.release()
 
 def absdiff_demo(image_1, image_2, sThre):
-
     gray_image_1 = cv2.cvtColor(image_1, cv2.COLOR_BGR2GRAY)  # 灰度化
 
     gray_image_1 = cv2.GaussianBlur(gray_image_1, (5, 5), 0)  # 高斯滤波
@@ -206,6 +205,10 @@ known_face_encodings = []
 
 # 人脸特征姓名集合
 known_face_IDs = []
+
+
+video_capture = cv2.VideoCapture("/Users/yfm/Documents/工程实践/1.mp4")
+sThre = 10  # sThre表示像素阈值
 
 i = 0
 
