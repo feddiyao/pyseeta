@@ -206,10 +206,6 @@ known_face_encodings = []
 # 人脸特征姓名集合
 known_face_IDs = []
 
-
-video_capture = cv2.VideoCapture("/Users/yfm/Documents/工程实践/1.mp4")
-sThre = 10  # sThre表示像素阈值
-
 i = 0
 
 if __name__ == '__main__':
