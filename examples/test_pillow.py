@@ -29,6 +29,11 @@ import cv2
 import time
 import numpy
 
+import face_recognition
+from PIL import ImageDraw, ImageFont, Image
+from face_recognition import load_image_file
+from cv2 import resize
+
 
 
 try:
@@ -39,7 +44,7 @@ except ImportError:
 
 def test_detector(frame):
     # load model
-    detector = Detector()
+    detector = Detector(model_path='E:\\GitFile\\pyseeta\\models\\seeta_fd_frontal_v1.0.bin')
     detector.set_min_face_size(30)
 
     image_color = Image.fromarray(frame).convert('RGB')
@@ -151,13 +156,64 @@ def absdiff_demo(image_1, image_2, sThre):
 
     return d_frame
 
-video_capture = cv2.VideoCapture("/Users/yfm/Documents/工程实践/1.mp4")
+# 人脸特征编码集合
+known_face_encodings = []
+
+# 人脸特征姓名集合
+known_face_IDs = []
+
+def compareface(image, region, name):
+    flag = 1
+    pic_image = image.crop(region)
+    # face_locations = face_recognition.face_locations(pic_image)
+    frame_4 = cv2.cvtColor(numpy.asarray(pic_image), cv2.COLOR_RGB2BGR)
+    frame_4 = resize(frame_4,(100,100))
+    pic_encodings = face_recognition.face_encodings(frame_4)
+    if (len(pic_encodings) == 0):
+        ID = 0
+        flag = 3
+        return flag, ID
+    pic_encoding = pic_encodings[0]
+    face_distances = face_recognition.face_distance(known_face_encodings, pic_encoding)
+    face_distances_list = face_distances.tolist()
+    if len(face_distances_list) == 0:
+        known_face_encodings.append(pic_encoding)
+        known_face_IDs.append(name)  # 调用的时候外面的nameid要+1
+        ID = 0
+        flag = 2
+        return flag, ID
+    print(face_distances_list[:])
+    minindex = face_distances_list.index(min(face_distances_list))
+    if min(face_distances_list) > 0.45:
+        known_face_encodings.append(pic_encoding)
+        known_face_IDs.append(name) # 调用的时候外面的nameid要+1
+        ID = 0
+        flag = 0
+    else:
+        ID = known_face_IDs[minindex]
+    return flag, ID
+
+
+
+# video_capture = cv2.VideoCapture(0)
+video_capture = cv2.VideoCapture("ch09_20190518235959.mp4")
 sThre = 10  # sThre表示像素阈值
+
+
+# 人脸特征编码集合
+known_face_encodings = []
+
+# 人脸特征姓名集合
+known_face_IDs = []
 
 i = 0
 
 if __name__ == '__main__':
 
+
+    countsnap=0
+
+    name = 0
 
     while True:
 
@@ -186,7 +242,7 @@ if __name__ == '__main__':
 
         contours, hierarchy = cv2.findContours(segMap, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
-        if len(contours) > 0 and len(contours) < 10:
+        if len(contours) > 0 and len(contours) < 10 and countsnap%4==0:
 
             for c in contours:
 
@@ -216,11 +272,24 @@ if __name__ == '__main__':
                     right = x + face_location.right
                     bottom = y + face_location.bottom
                     left = face_location.left + x
-
+                    region_next = (left,top,right,bottom)
+                    flag, id = compareface(image,region_next,name)
                     cv2.rectangle(frame_2, (left, top), (right, bottom), (0, 0, 255), 2)
+                    font = cv2.FONT_HERSHEY_DUPLEX
+                    if flag == 1:
+                        # cv2.putText(frame_2, id, (left + 6, bottom - 6), font, 1.0, (255, 255, 255), 1)
+                        print(id)
+                        print(flag)
+                        print('=-=-=-=-=-=-=-=-=-=-=')
+                    elif flag == 0:
+                        # cv2.putText(frame_2, name, (left + 6, bottom - 6), font, 1.0, (255, 255, 255), 1)
+                        print(name)
+                        print(flag)
+                        print('=-=-=-=-=-=-=-=-=-=-=')
+                        name+=1
 
                     # cv2.rectangle(frame_2, (left, bottom - 35), (right, bottom), (0, 0, 255), 2)
-                    font = cv2.FONT_HERSHEY_DUPLEX
+
                     # cv2.putText(frame, '', (left + 6, bottom - 6), font, 1.0, (255, 255, 255), 1)
 
         cv2.imshow('Video', frame_2)
