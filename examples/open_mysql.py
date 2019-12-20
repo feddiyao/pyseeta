@@ -7,8 +7,8 @@ import numpy as np
 from PIL import ImageDraw, ImageFont, Image
 from face_recognition import load_image_file
 from spyder.widgets.findinfiles import FILE_PATH
-FILE_PATH1 = "./pic/obama.jpg"
-FILE_PATH2 = "./pic/like.jpg"
+FILE_PATH1 = "/Users/zhaxiaohui/pyseeta/pic/obama.jpg"
+FILE_PATH2 = "/Users/zhaxiaohui/pyseeta/pic/like.jpg"
 # 人脸特征编码集合
 known_face_encodings = []
 
@@ -31,6 +31,7 @@ def change_encoding(pic_encoding):
    # ID = ID
 
     # 将人脸特征编码存进数据库
+    save_property(encoding_str)
     save_encoding(encoding_str)
     #save_encoding(encoding__array_list)
 
@@ -49,6 +50,7 @@ def load_image1(FILE_PATH):
    # ID = ID
 
     # 将人脸特征编码存进数据库
+    save_property(encoding_str)
     save_encoding(encoding_str)
     #save_encoding(encoding__array_list)
 
@@ -107,6 +109,7 @@ def compare_faces1(FILE_PATH):
     if min(face_distances_list) > 0.6:
         print('不存在')
         change_encoding(pic_encoding)
+        save_property()
     else:
         ID = known_face_IDs[minindex]
         print('已存在')
@@ -153,6 +156,28 @@ def save_encoding(encoding_str):
     # 关闭游标
     cursor.close()
     # 关闭数据库连接
+    db.close()
+
+def save_property(encoding_str):
+            # 创建数据库连接对象
+    db = pymysql.connect('localhost', 'root', '12345678', 'Indentity')
+            # 使用 cursor() 方法创建一个游标对象 cursor
+    cursor = db.cursor()
+            # SQL插入语句
+    insert_sql = "insert into property_table(face_vector) values(%s)"
+    try:
+                # 执行sql语句
+        cursor.execute(insert_sql, encoding_str)
+                # 提交到数据库执行
+        db.commit()
+    except Exception as e:
+                # 如果发生错误则回滚并打印错误信息
+        db.rollback()
+        print(e)
+
+            # 关闭游标
+    cursor.close()
+            # 关闭数据库连接
     db.close()
 
 
