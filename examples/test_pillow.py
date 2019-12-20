@@ -19,21 +19,21 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+import datetime
+import os
 
-
-
+from datebase.open_person import OPENPERSON
+from datebase.open_property import OPENPROPERTY
 from pyseeta import Detector
 from pyseeta import Aligner
 from pyseeta import Identifier
 import cv2
 import time
 import numpy
-
 import face_recognition
 from PIL import ImageDraw, ImageFont, Image
 from face_recognition import load_image_file
 from cv2 import resize
-
 
 
 try:
@@ -42,9 +42,13 @@ try:
 except ImportError:
     raise ImportError('Pillow can not be found!')
 
+vediopath = "/Users/zhaxiaohui/Downloads/工程实践/ch09_20190518235959.mp4"
+vediodir = '/Users/zhaxiaohui/Downloads/工程实践/vedio'
+
+
 def test_detector(frame):
     # load model
-    detector = Detector(model_path='E:\\GitFile\\pyseeta\\models\\seeta_fd_frontal_v1.0.bin')
+    detector = Detector(model_path='/Users/zhaxiaohui/pyseeta/model/seeta_fd_frontal_v1.0.bin')
     detector.set_min_face_size(30)
 
     image_color = Image.fromarray(frame).convert('RGB')
@@ -55,6 +59,7 @@ def test_detector(frame):
     return faces
     # image_color.show()
     # detector.release()
+
 
 def test_aligner():
     print('test aligner:')
@@ -78,6 +83,7 @@ def test_aligner():
 
     aligner.release()
     detector.release()
+
 
 def test_identifier():
     print('test identifier:')
@@ -122,6 +128,7 @@ def test_identifier():
     aligner.release()
     detector.release()
 
+
 def test_cropface():
     detector = Detector()
     detector.set_min_face_size(30)
@@ -141,6 +148,7 @@ def test_cropface():
     aligner.release()
     detector.release()
 
+
 def absdiff_demo(image_1, image_2, sThre):
     gray_image_1 = cv2.cvtColor(image_1, cv2.COLOR_BGR2GRAY)  # 灰度化
 
@@ -156,61 +164,82 @@ def absdiff_demo(image_1, image_2, sThre):
 
     return d_frame
 
+
 # 人脸特征编码集合
-known_face_encodings = []
+known_face_encodings_new = []
 
 # 人脸特征姓名集合
-known_face_IDs = []
+known_face_IDs_new = []
+
+
+def readtime(vediodir):
+    for filename in os.listdir(vediodir):
+        file_name = filename.split('.')[0]
+        datestring = file_name.split('_')[1]
+        list_i = list(datestring)    # str -> list
+        list_i.insert(4, '-')   # 注意不用重新赋值
+        list_i.insert(7, '-')
+        list_i.insert(10, ' ')  # 注意不用重新赋值
+        list_i.insert(13, ':')
+        list_i.insert(16, ':')
+
+        str_i = ''.join(list_i)    # list -> str
+        # print(str_i)
+        date_time = datetime.datetime.strptime(str_i, "%Y-%m-%d %H:%M:%S")
+        # print(date_time)
+    return date_time
+
 
 def compareface(image, region, name):
+    openperson = OPENPERSON()
     flag = 1
     pic_image = image.crop(region)
     # face_locations = face_recognition.face_locations(pic_image)
     frame_4 = cv2.cvtColor(numpy.asarray(pic_image), cv2.COLOR_RGB2BGR)
-    frame_4 = resize(frame_4,(100,100))
+    frame_4 = resize(frame_4, (100, 100))
     pic_encodings = face_recognition.face_encodings(frame_4)
-    if (len(pic_encodings) == 0):
+    known_face_encodings_new, known_face_IDs_new = openperson.select_encoding()
+    if len(pic_encodings) == 0:
         ID = 0
         flag = 3
         return flag, ID
     pic_encoding = pic_encodings[0]
-    face_distances = face_recognition.face_distance(known_face_encodings, pic_encoding)
+    face_distances = face_recognition.face_distance(known_face_encodings_new, pic_encoding)
     face_distances_list = face_distances.tolist()
     if len(face_distances_list) == 0:
-        known_face_encodings.append(pic_encoding)
-        known_face_IDs.append(name)  # 调用的时候外面的nameid要+1
+        known_face_encodings_new.append(pic_encoding)
+        known_face_IDs_new.append(name)  # 调用的时候外面的nameid要+1
+        pic_encoding_str = openperson.change_encoding(pic_encoding)
+        openperson.save_encoding()
+        openpropety = OPENPROPERTY(pic_encoding_str, 1, readtime(vediodir))
+        openpropety.save_property()
         ID = 0
         flag = 2
         return flag, ID
     print(face_distances_list[:])
     minindex = face_distances_list.index(min(face_distances_list))
     if min(face_distances_list) > 0.45:
-        known_face_encodings.append(pic_encoding)
-        known_face_IDs.append(name) # 调用的时候外面的nameid要+1
+        known_face_encodings_new.append(pic_encoding)
+        known_face_IDs_new.append(name) # 调用的时候外面的nameid要+1
+        pic_encoding_str = openperson.change_encoding(pic_encoding)
+        openperson.save_encoding(pic_encoding_str)
+        openpropety = OPENPROPERTY(pic_encoding_str, 1, readtime(vediodir))
+        openpropety.save_property()
         ID = 0
         flag = 0
     else:
-        ID = known_face_IDs[minindex]
+        ID = known_face_IDs_new[minindex]
+        pic_encoding_str = openperson.change_encoding(pic_encoding)
+        openpropety = OPENPROPERTY(pic_encoding_str, ID, readtime(vediodir))
+        openpropety.save_property()
     return flag, ID
 
 
-
-# video_capture = cv2.VideoCapture(0)
-video_capture = cv2.VideoCapture("ch09_20190518235959.mp4")
-sThre = 10  # sThre表示像素阈值
-
-
-# 人脸特征编码集合
-known_face_encodings = []
-
-# 人脸特征姓名集合
-known_face_IDs = []
-
-i = 0
-
-if __name__ == '__main__':
-
-
+def read_vedio():
+    openperson = OPENPERSON()
+    video_capture = cv2.VideoCapture(vediopath)
+    sThre = 10  # sThre表示像素阈值
+    i = 0
     countsnap=0
 
     name = 0
@@ -300,5 +329,9 @@ if __name__ == '__main__':
         # test_identifier()
         # test_cropface()
 
-video_capture.release()
-cv2.destroyAllWindows()
+    video_capture.release()
+    cv2.destroyAllWindows()
+
+
+if __name__ == '__main__':
+    read_vedio()
